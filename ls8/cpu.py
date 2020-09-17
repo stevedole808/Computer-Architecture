@@ -11,15 +11,8 @@ class CPU:
         self.ram = [0] * 256 #  256 bites memory
         self.pc = 0
         self.running = True
-        self.codes = {
-            0b10000010: self.LDI,
-            0b01000111: self.PRN,
-            0b00000001: self.HLT,
-            0b10100010: self.MUL,
-            0b10100011: self.DIV,
-            0b10100000: self.ADD,
-            0b10100001: self.SUB
-        }
+        self.SP = 7
+        self.reg[self.SP] = 0xF4
     
     
     def ram_read(self, MAR):
@@ -110,24 +103,13 @@ class CPU:
             print(" %02X" % self.reg[i], end='')
 
         print()
-    
-    def LDI(self):
-        operand_a = self.ram_read(self.pc + 1)
-        operand_b = self.ram_read(self.pc + 2)
-        self.reg[operand_a] = operand_b
-
-    def PRN(self):
-        operand_a = self.ram_read(self.pc + 1)
-        print(self.reg[operand_a])
-
-    def HLT(self):
-        exit()
 
     def MUL(self):
         operand_a = self.ram_read(self.pc + 1)
         operand_b = self.ram_read(self.pc + 2)
         self.alu("MUL", operand_a, operand_b)
-    
+        self.pc += 3
+
     def DIV(self):
         operand_a = self.ram_read(self.pc + 1)
         operand_b = self.ram_read(self.pc + 2)
@@ -142,27 +124,116 @@ class CPU:
         operand_a = self.ram_read(self.pc + 1)
         operand_b = self.ram_read(self.pc + 2)
         self.alu("SUB", operand_a, operand_b)
-        
+
+    def LDI(self):
+        operand_a = self.ram_read(self.pc + 1)
+        operand_b = self.ram_read(self.pc + 2)
+        reg_num = self.ram[self.pc + 1]
+        value = self.ram[self.pc + 2]
+        self.reg[reg_num] = value
+        self.reg[operand_a] = operand_b
+        self.pc += 3
+
+    def PRN(self):
+        operand_a = self.ram_read(self.pc + 1)
+        print(self.reg[operand_a])
+        self.pc += 2
+
+    def HLT(self):
+        exit()
+    
+    def push_value(self, value):
+        self.reg[self.SP] -= 1
+        top_of_stack_order = self.reg[self.SP]
+        self.ram[top_of_stack_order] = value
+    
+    def pop_value(self):
+        # Pop the value at the top of the stack into the given register
+        top_of_stack_order = self.reg[self.SP]
+        value = self.ram[top_of_stack_order]
+        self.reg[self.SP] += 1
+        return value
+
+    def PUSH(self):
+        # Get the reg num to push
+        reg_num = self.ram[self.pc + 1]
+        # Get the value to push
+        value = self.reg[reg_num]
+        # Copy the value to the Stack Pointer address
+        self.push_value(value)
+        self.pc += 2
+
+    def POP(self):
+        reg_num = self.ram[self.pc + 1]
+        value = self.pop_value()
+        self.reg[reg_num] = value
+        self.pc += 2
+
+    def CALL(self):
+        # compute the return addr
+        return_addr = self.pc + 2
+        print(return_addr)
+        sys.exit(3)
+        # Push return addr on stack
+        self.push_value(return_addr) 
+        # Get the value from the operand reg
+        reg_num = self.ram[self.pc + 1]
+        value = self.reg[reg_num]
+        # Set the pc to the value
+        self.pc = value
+    
+    def RET(self):
+        pass
+
     def run(self):
         """Run the CPU."""
 
         self.running = True
-        
+            
         while self.running:
+            LDI = 0b10000010
+            PRN = 0b01000111
+            HLT = 0b00000001
+            CALL = 0b01010000
+            PUSH = 0b01000101
+            POP = 0b01000110
+            RET = 0b00010001
+            MUL = 0b10100010
+            DIV = 0b10100011
+            ADD = 0b10100000
+            SUB = 0b10100001
+
             ir = self.ram_read(self.pc)
-            self.codes[ir]()
-            number_of_operands = (ir & 0b11000000) >> 6
-            how_far_to_move_pc = number_of_operands + 1
-            self.pc += how_far_to_move_pc 
 
-        # if ir == '00000001':
-        #     running = false 
-        #     pc += 1
-        # elif ir == '10000010':
-        #     self.reg[operand_a] = 
- 
-    # def HLT():
-    #     exit()
-
-    # def LDI():
-    #     self.ram_read
+            if ir == LDI:
+                self.LDI()
+            elif ir == PRN:
+                self.PRN()
+            elif ir == HLT:
+                self.HLT()
+            elif ir == PUSH:
+                self.PUSH()
+            elif ir == POP:
+                self.POP()
+            elif ir == CALL:
+                self.CALL()
+            elif ir == RET:
+                self.RET()
+            elif ir == MUL:
+                self.MUL()
+            elif ir == ADD:
+                self.ADD()
+            elif ir == SUB:
+                self.SUB()
+            elif ir == DIV:
+                self.DIV()
+            else:
+                print(f"Unknown instruction {ir}")
+            # self.codes[ir]()
+            # inst_sets_pc = (ir >> 4) & 1 == 1
+            # if not inst_sets_pc:
+            #     number_of_operands = (ir & 0b11000000) >> 6
+            #     how_far_to_move_pc = number_of_operands + 1
+            #     self.pc += how_far_to_move_pc 
+            # else: 
+            #     print(f"Uknown instruction {ir}")
